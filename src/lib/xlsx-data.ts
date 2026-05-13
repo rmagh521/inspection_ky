@@ -6,6 +6,10 @@ import type {
   InspectionPoint,
   EquipmentMaker,
   EquipmentModel,
+  InspectionEquipmentMap,
+  EquipmentTechMap,
+  EquipmentPricing,
+  KYProposalSpec,
   Technology,
   TechRelation,
   TechSpec,
@@ -177,6 +181,10 @@ export async function getEquipmentMakers(): Promise<EquipmentMaker[]> {
 
 export async function getEquipmentModels(): Promise<EquipmentModel[]> {
   const rows = await readSheet<RawModel>("장비모델");
+  const pricing = await getEquipmentPricing();
+  const techMaps = await getEquipmentTechMaps();
+  const pricingMap = new Map(pricing.map((p) => [p.modelName, p]));
+
   return rows
     .sort((a, b) => a.제조사명.localeCompare(b.제조사명) || a.모델명.localeCompare(b.모델명))
     .map((r) => ({
@@ -185,7 +193,111 @@ export async function getEquipmentModels(): Promise<EquipmentModel[]> {
       series: r.시리즈 || null,
       keySpecs: r.주요사양,
       inspectionTypes: r.검사유형.split(",").map((s) => s.trim()).filter(Boolean),
+      pricing: pricingMap.get(r.모델명) ?? null,
+      technologies: techMaps.filter((t) => t.modelName === r.모델명),
     }));
+}
+
+// ===== INSPECTION-EQUIPMENT MAPPING =====
+
+interface RawInspEquipMap {
+  제품명: string;
+  검사포인트: string;
+  장비제조사: string;
+  장비모델: string;
+  적합도: string;
+  비고: string;
+}
+
+export async function getInspectionEquipmentMaps(productName?: string): Promise<InspectionEquipmentMap[]> {
+  const rows = await readSheet<RawInspEquipMap>("검사장비매핑");
+  const filtered = productName ? rows.filter((r) => r.제품명 === productName) : rows;
+  return filtered.map((r) => ({
+    productName: r.제품명,
+    inspectionPointName: r.검사포인트,
+    makerName: r.장비제조사,
+    modelName: r.장비모델,
+    suitability: r.적합도,
+    notes: r.비고 || null,
+  }));
+}
+
+// ===== EQUIPMENT-TECH MAPPING =====
+
+interface RawEquipTechMap {
+  장비모델: string;
+  기술명: string;
+  활용수준: string;
+  비고: string;
+}
+
+export async function getEquipmentTechMaps(): Promise<EquipmentTechMap[]> {
+  const rows = await readSheet<RawEquipTechMap>("장비기술매핑");
+  return rows.map((r) => ({
+    modelName: r.장비모델,
+    technologyName: r.기술명,
+    utilizationLevel: r.활용수준,
+    notes: r.비고 || null,
+  }));
+}
+
+// ===== EQUIPMENT PRICING =====
+
+interface RawEquipPricing {
+  장비모델: string;
+  시장가격USD: number;
+  가격범위하한USD: number;
+  가격범위상한USD: number;
+  KY목표가격USD: number;
+  KY목표근거: string;
+  가격출처: string;
+  추정여부: boolean;
+}
+
+export async function getEquipmentPricing(): Promise<EquipmentPricing[]> {
+  const rows = await readSheet<RawEquipPricing>("장비가격");
+  return rows.map((r) => ({
+    modelName: r.장비모델,
+    marketPriceUSD: r.시장가격USD,
+    priceLowUSD: r.가격범위하한USD,
+    priceHighUSD: r.가격범위상한USD,
+    kyTargetPriceUSD: r.KY목표가격USD,
+    kyTargetRationale: r.KY목표근거,
+    priceSource: r.가격출처,
+    isEstimated: r.추정여부 !== false,
+  }));
+}
+
+// ===== KY PROPOSAL SPECS =====
+
+interface RawKYProposalSpec {
+  제품명: string;
+  공정단계: string;
+  검사포인트: string;
+  스펙항목: string;
+  시장요구스펙: string;
+  KY현재스펙: string;
+  KY목표스펙: string;
+  달성전략: string;
+  달성시기: string;
+  근거: string;
+}
+
+export async function getKYProposalSpecs(productName?: string): Promise<KYProposalSpec[]> {
+  const rows = await readSheet<RawKYProposalSpec>("KY제안스펙");
+  const filtered = productName ? rows.filter((r) => r.제품명 === productName) : rows;
+  return filtered.map((r) => ({
+    productName: r.제품명,
+    processStepName: r.공정단계,
+    inspectionPointName: r.검사포인트,
+    specItem: r.스펙항목,
+    marketRequiredSpec: r.시장요구스펙,
+    kyCurrentSpec: r.KY현재스펙,
+    kyTargetSpec: r.KY목표스펙,
+    achievementStrategy: r.달성전략,
+    timeline: r.달성시기,
+    rationale: r.근거,
+  }));
 }
 
 // ===== TECHNOLOGIES =====
@@ -459,7 +571,8 @@ export async function getDashboardStats(): Promise<DashboardStats> {
 const REQUIRED_SHEETS = [
   "제품", "공정단계", "검사포인트", "장비제조사", "장비모델",
   "기술스택", "KY제품", "KY역량분석", "개발로드맵", "전략액션",
-  "기술상관관계", "기술스펙",
+  "기술상관관계", "기술스펙", "검사장비매핑", "장비기술매핑",
+  "장비가격", "KY제안스펙",
 ];
 
 export function invalidateCache(): void {
@@ -512,12 +625,18 @@ export async function getProductDetail(productName: string): Promise<ProductDeta
 
   const steps = await getProcessSteps(productName);
   const points = await getInspectionPoints(productName);
+  const equipMaps = await getInspectionEquipmentMaps(productName);
+  const proposalSpecs = await getKYProposalSpecs(productName);
 
   const stepsWithPoints = steps.map((step) => ({
     ...step,
-    inspectionPoints: points.filter(
-      (ip) => ip.processStepName === step.name && ip.productName === productName
-    ),
+    inspectionPoints: points
+      .filter((ip) => ip.processStepName === step.name && ip.productName === productName)
+      .map((ip) => ({
+        ...ip,
+        equipmentModels: equipMaps.filter((em) => em.inspectionPointName === ip.name),
+        proposalSpecs: proposalSpecs.filter((ps) => ps.inspectionPointName === ip.name && ps.processStepName === step.name),
+      })),
   }));
 
   return {

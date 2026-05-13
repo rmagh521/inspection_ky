@@ -32,6 +32,8 @@ export interface InspectionPoint {
   speedSpec: string | null;
   fovSpec: string | null;
   keyEquipmentType: string | null;
+  equipmentModels?: InspectionEquipmentMap[];
+  proposalSpecs?: KYProposalSpec[];
 }
 
 export interface EquipmentMaker {
@@ -48,6 +50,48 @@ export interface EquipmentModel {
   series: string | null;
   keySpecs: string;
   inspectionTypes: string[];
+  pricing?: EquipmentPricing | null;
+  technologies?: EquipmentTechMap[];
+}
+
+export interface InspectionEquipmentMap {
+  productName: string;
+  inspectionPointName: string;
+  makerName: string;
+  modelName: string;
+  suitability: string;
+  notes: string | null;
+}
+
+export interface EquipmentTechMap {
+  modelName: string;
+  technologyName: string;
+  utilizationLevel: string;
+  notes: string | null;
+}
+
+export interface EquipmentPricing {
+  modelName: string;
+  marketPriceUSD: number;
+  priceLowUSD: number;
+  priceHighUSD: number;
+  kyTargetPriceUSD: number;
+  kyTargetRationale: string;
+  priceSource: string;
+  isEstimated: boolean;
+}
+
+export interface KYProposalSpec {
+  productName: string;
+  processStepName: string;
+  inspectionPointName: string;
+  specItem: string;
+  marketRequiredSpec: string;
+  kyCurrentSpec: string;
+  kyTargetSpec: string;
+  achievementStrategy: string;
+  timeline: string;
+  rationale: string;
 }
 
 export interface TechRelation {

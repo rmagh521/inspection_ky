@@ -851,6 +851,329 @@ const strategicActions = [
   { 영역: "신규 진입 (M&A/JV)", 시간구분: "LONG_TERM", 액션: "SoIC/V-Cache 전용 검사 통합 솔루션", 설명: "Hybrid Bonding 표면계측 + Die-to-Wafer 정렬 + Post-Bond SAT/IR 통합. 3D 적층 End-to-End 검사 라인 제공", 우선순위: "CRITICAL" },
 ];
 
+// ===== INSPECTION-EQUIPMENT MAPPING =====
+// Maps inspection points to specific equipment models via inspection type matching
+const inspEquipTypeMap: Record<string, { 장비제조사: string; 장비모델: string; 적합도: string; 비고: string }[]> = {
+  WAFER_INSPECTION: [
+    { 장비제조사: "KLA", 장비모델: "ICOS T7", 적합도: "PRIMARY", 비고: "Wafer-level 3D 검사 업계 표준. KLA IR 자료 기반" },
+    { 장비제조사: "Camtek", 장비모델: "Phoenix AP", 적합도: "PRIMARY", 비고: "Post-dicing AOI 및 wafer 표면 검사. Camtek 공식 스펙" },
+    { 장비제조사: "Koh Young", 장비모델: "Neptune", 적합도: "SECONDARY", 비고: "Meister 플랫폼 확장. Wafer-level 대응 개발 중" },
+  ],
+  TSV_INSPECTION: [
+    { 장비제조사: "KLA", 장비모델: "ICOS T7", 적합도: "SECONDARY", 비고: "TSV 상부 검사 가능. 깊이 측정은 Confocal/IR 별도 필요" },
+    { 장비제조사: "Onto Innovation", 장비모델: "Dragonfly G3", 적합도: "SECONDARY", 비고: "Sub-surface defect 검사 기능 보유 (SEMI 발표 자료)" },
+  ],
+  THICKNESS_METROLOGY: [
+    { 장비제조사: "Onto Innovation", 장비모델: "ChromaSpec", 적합도: "PRIMARY", 비고: "Film 두께 계측 전문. Onto 제품 라인업" },
+    { 장비제조사: "Onto Innovation", 장비모델: "Dragonfly G3", 적합도: "SECONDARY", 비고: "LT-200 dual-head 3D metrology (SEMI 발표)" },
+  ],
+  SURFACE_INSPECTION: [
+    { 장비제조사: "Camtek", 장비모델: "Eagle G5", 적합도: "PRIMARY", 비고: "BF 0.5μm, DF 0.3μm defect sensitivity. 범용 생산형 (Camtek 공식)" },
+    { 장비제조사: "Camtek", 장비모델: "HAWK", 적합도: "PRIMARY", 비고: "0.1μm sensitivity, Eagle 대비 2배 TPT (Camtek 공식)" },
+    { 장비제조사: "Onto Innovation", 장비모델: "Dragonfly G3", 적합도: "PRIMARY", 비고: "Sub-μm 2D defect detection, Clearfind 모드 (SEMI 발표)" },
+    { 장비제조사: "Camtek", 장비모델: "Condor ILI", 적합도: "SECONDARY", 비고: "인라인 표면 검사 (Camtek 공식)" },
+    { 장비제조사: "Koh Young", 장비모델: "Neptune", 적합도: "ALTERNATIVE", 비고: "Wafer 표면 검사 확장 대응. 개발 중" },
+  ],
+  CD_METROLOGY: [
+    { 장비제조사: "Camtek", 장비모델: "Eagle G5", 적합도: "PRIMARY", 비고: "RDL L/S 1.4μm 대응 (Camtek 공식 스펙)" },
+    { 장비제조사: "Onto Innovation", 장비모델: "Dragonfly G3", 적합도: "PRIMARY", 비고: "Sub-μm RDL 검사, BF/DF/Clearfind (SEMI)" },
+    { 장비제조사: "Camtek", 장비모델: "HAWK", 적합도: "PRIMARY", 비고: "<1μm L/S 대응, IR Gen2 (Camtek 공식)" },
+  ],
+  BUMP_INSPECTION: [
+    { 장비제조사: "KLA", 장비모델: "ICOS T7", 적합도: "PRIMARY", 비고: "Wafer-level bump 3D 검사 업계 표준 (KLA 공식)" },
+    { 장비제조사: "KLA", 장비모델: "ICOS F5", 적합도: "PRIMARY", 비고: "Flip-chip bump 검사 전문 (KLA 공식)" },
+    { 장비제조사: "Camtek", 장비모델: "Eagle G5", 적합도: "PRIMARY", 비고: "Bump 2D/3D 검사 겸용 (Camtek 공식)" },
+    { 장비제조사: "Camtek", 장비모델: "HAWK", 적합도: "PRIMARY", 비고: "Sub-10μm pitch, 500M bumps/wafer 대응 (Camtek 공식)" },
+    { 장비제조사: "CyberOptics (Nordson)", 장비모델: "SQ3000+", 적합도: "SECONDARY", 비고: "MRS 센서 기반 3D bump 검사 (Nordson 공식)" },
+    { 장비제조사: "Koh Young", 장비모델: "Meister S", 적합도: "SECONDARY", 비고: "Moiré 기반 bump 3D 측정. SMT→반도체 확장 중" },
+    { 장비제조사: "Koh Young", 장비모델: "Neptune", 적합도: "ALTERNATIVE", 비고: "Bump 검사 대응 개발 중" },
+  ],
+  ALIGNMENT_INSPECTION: [
+    { 장비제조사: "KLA", 장비모델: "ICOS T7", 적합도: "PRIMARY", 비고: "Die stack alignment 검사 (KLA 공식)" },
+    { 장비제조사: "Camtek", 장비모델: "Eagle G5", 적합도: "SECONDARY", 비고: "Overlay 측정 기능 보유" },
+    { 장비제조사: "Koh Young", 장비모델: "Meister S", 적합도: "SECONDARY", 비고: "Die attach 정렬 검사 대응" },
+  ],
+  SAT_INSPECTION: [
+    { 장비제조사: "Nordson DAGE", 장비모델: "Quadra 7", 적합도: "PRIMARY", 비고: "SAT+X-ray 복합 검사 (Nordson DAGE 공식)" },
+    { 장비제조사: "Nordson DAGE", 장비모델: "XD7800", 적합도: "SECONDARY", 비고: "X-ray/CT + SAT 겸용 (Nordson DAGE 공식)" },
+  ],
+  BALL_ATTACH_INSPECTION: [
+    { 장비제조사: "KLA", 장비모델: "ICOS F5", 적합도: "PRIMARY", 비고: "BGA ball attach 3D 검사 (KLA 공식)" },
+    { 장비제조사: "Koh Young", 장비모델: "Meister D", 적합도: "PRIMARY", 비고: "Ball attach 검사 대응 (고영 공식)" },
+    { 장비제조사: "CyberOptics (Nordson)", 장비모델: "SQ3000+", 적합도: "SECONDARY", 비고: "MRS 기반 ball 3D 검사" },
+  ],
+  MARKING_INSPECTION: [
+    { 장비제조사: "Camtek", 장비모델: "Eagle G5", 적합도: "SECONDARY", 비고: "마킹 검사 부가 기능" },
+    { 장비제조사: "Koh Young", 장비모델: "Zenith Alpha", 적합도: "SECONDARY", 비고: "AOI 마킹/OCR 검사 기능" },
+  ],
+  SPI: [
+    { 장비제조사: "Koh Young", 장비모델: "KY8030-3", 적합도: "PRIMARY", 비고: "3D SPI 시장 점유율 1위. Moiré 기반 (고영 공식)" },
+    { 장비제조사: "CyberOptics (Nordson)", 장비모델: "SQ3000+", 적합도: "PRIMARY", 비고: "MRS 기반 SPI (Nordson 공식)" },
+    { 장비제조사: "Mirtec", 장비모델: "MI-15", 적합도: "SECONDARY", 비고: "SPI 검사 대응 (Mirtec 공식)" },
+    { 장비제조사: "Viscom", 장비모델: "S3088 SPI", 적합도: "SECONDARY", 비고: "SPI 검사 (Viscom 공식)" },
+  ],
+  PRE_REFLOW_AOI: [
+    { 장비제조사: "Koh Young", 장비모델: "Zenith Alpha", 적합도: "PRIMARY", 비고: "3D AOI Pre-reflow 검사 (고영 공식)" },
+    { 장비제조사: "Mirtec", 장비모델: "MV-6 OMNI", 적합도: "PRIMARY", 비고: "Pre-reflow AOI (Mirtec 공식)" },
+  ],
+  POST_REFLOW_AOI: [
+    { 장비제조사: "Koh Young", 장비모델: "Zenith 2", 적합도: "PRIMARY", 비고: "Shadow-free 3D AOI. 시장 선두 (고영 공식)" },
+    { 장비제조사: "Koh Young", 장비모델: "Zenith Alpha", 적합도: "PRIMARY", 비고: "Advanced 3D AOI (고영 공식)" },
+    { 장비제조사: "Mirtec", 장비모델: "MV-6 OMNI", 적합도: "SECONDARY", 비고: "Post-reflow AOI (Mirtec 공식)" },
+    { 장비제조사: "CyberOptics (Nordson)", 장비모델: "SQ3000+", 적합도: "SECONDARY", 비고: "CMM-level AOI (Nordson 공식)" },
+    { 장비제조사: "Viscom", 장비모델: "X7056-II", 적합도: "SECONDARY", 비고: "X-ray+AOI 복합 (Viscom 공식)" },
+  ],
+  UNDERFILL_INSPECTION: [
+    { 장비제조사: "Nordson DAGE", 장비모델: "Quadra 7", 적합도: "PRIMARY", 비고: "Underfill void SAT 검사" },
+    { 장비제조사: "Koh Young", 장비모델: "Zenith 2", 적합도: "SECONDARY", 비고: "Underfill 외관 검사 가능" },
+  ],
+  XRAY_2D: [
+    { 장비제조사: "Nordson DAGE", 장비모델: "XD7800", 적합도: "PRIMARY", 비고: "<1μm focal spot X-ray (Nordson DAGE 공식)" },
+    { 장비제조사: "Nordson DAGE", 장비모델: "Quadra 7", 적합도: "PRIMARY", 비고: "SAT+X-ray 복합 (Nordson DAGE 공식)" },
+    { 장비제조사: "Viscom", 장비모델: "X7056-II", 적합도: "SECONDARY", 비고: "X-ray AOI (Viscom 공식)" },
+  ],
+  XRAY_3D: [
+    { 장비제조사: "Nordson DAGE", 장비모델: "XD7800", 적합도: "PRIMARY", 비고: "CT 기능 포함 (Nordson DAGE 공식)" },
+    { 장비제조사: "YXLON (Comet)", 장비모델: "Cheetah EVO", 적합도: "PRIMARY", 비고: "인라인 X-ray CT (YXLON 공식)" },
+    { 장비제조사: "Nikon", 장비모델: "XT V 160", 적합도: "SECONDARY", 비고: "고분해능 CT. Offline (Nikon 공식)" },
+  ],
+  WARPAGE_MEASUREMENT: [
+    { 장비제조사: "CyberOptics (Nordson)", 장비모델: "WX3000", 적합도: "PRIMARY", 비고: "Shadow Moiré warpage 측정 (Nordson 공식)" },
+  ],
+  DIE_ATTACH_INSPECTION: [
+    { 장비제조사: "Koh Young", 장비모델: "Meister D", 적합도: "PRIMARY", 비고: "Die attach 검사 전문 (고영 공식)" },
+    { 장비제조사: "Koh Young", 장비모델: "Meister S", 적합도: "SECONDARY", 비고: "Die placement 정밀 검사" },
+    { 장비제조사: "Camtek", 장비모델: "Eagle G5", 적합도: "SECONDARY", 비고: "Die attach AOI 기능" },
+  ],
+  WIRE_BOND_INSPECTION: [
+    { 장비제조사: "Koh Young", 장비모델: "Meister D", 적합도: "PRIMARY", 비고: "Wire loop height 3D 검사 (고영 공식)" },
+    { 장비제조사: "Nordson DAGE", 장비모델: "XD7800", 적합도: "SECONDARY", 비고: "Wire bond X-ray 검사" },
+  ],
+  FLATNESS_MEASUREMENT: [
+    { 장비제조사: "CyberOptics (Nordson)", 장비모델: "WX3000", 적합도: "PRIMARY", 비고: "Flatness/warpage 측정 (Nordson 공식)" },
+    { 장비제조사: "Onto Innovation", 장비모델: "ChromaSpec", 적합도: "SECONDARY", 비고: "Film/flatness 측정" },
+  ],
+  OVERLAY_METROLOGY: [
+    { 장비제조사: "Camtek", 장비모델: "Eagle G5", 적합도: "PRIMARY", 비고: "Overlay 측정 기능" },
+    { 장비제조사: "Onto Innovation", 장비모델: "Dragonfly G3", 적합도: "PRIMARY", 비고: "Overlay metrology (SEMI 발표)" },
+  ],
+  OPTICAL_ALIGNMENT: [
+    { 장비제조사: "Onto Innovation", 장비모델: "Dragonfly G3", 적합도: "SECONDARY", 비고: "Sub-μm alignment 측정. CPO 대응 제한적" },
+  ],
+  WAVEGUIDE_INSPECTION: [
+    { 장비제조사: "Onto Innovation", 장비모델: "Dragonfly G3", 적합도: "SECONDARY", 비고: "Clearfind 모드 응용 가능성. CPO 전용 장비는 시장 미성숙" },
+  ],
+  TIM_INSPECTION: [
+    { 장비제조사: "Koh Young", 장비모델: "KY8030-3", 적합도: "PRIMARY", 비고: "SPI 기술 응용 TIM 도포 검사 (WLP 기획서 근거)" },
+    { 장비제조사: "CyberOptics (Nordson)", 장비모델: "SQ3000+", 적합도: "SECONDARY", 비고: "MRS 기반 TIM 도포 검사 가능" },
+    { 장비제조사: "Nordson DAGE", 장비모델: "Quadra 7", 적합도: "SECONDARY", 비고: "TIM void SAT 검사" },
+  ],
+  THERMAL_INSPECTION: [
+    { 장비제조사: "Nordson DAGE", 장비모델: "Quadra 7", 적합도: "PRIMARY", 비고: "SAT 열 인터페이스 검사" },
+  ],
+  POROSITY_ANALYSIS: [
+    { 장비제조사: "Nordson DAGE", 장비모델: "XD7800", 적합도: "PRIMARY", 비고: "X-ray CT 기반 porosity 분석" },
+    { 장비제조사: "Nordson DAGE", 장비모델: "Quadra 7", 적합도: "SECONDARY", 비고: "SAT 기반 void 분석" },
+  ],
+};
+
+const inspectionEquipmentMapping: { 제품명: string; 검사포인트: string; 장비제조사: string; 장비모델: string; 적합도: string; 비고: string }[] = [];
+for (const ip of inspectionPointsWithSpecs) {
+  const types = ip.검사유형.split(",").map((s: string) => s.trim());
+  for (const t of types) {
+    const equips = inspEquipTypeMap[t] ?? [];
+    for (const eq of equips) {
+      inspectionEquipmentMapping.push({ 제품명: ip.제품명, 검사포인트: ip.검사포인트, ...eq });
+    }
+  }
+}
+
+// ===== EQUIPMENT-TECHNOLOGY MAPPING =====
+const equipmentTechMapping = [
+  // KLA
+  { 장비모델: "ICOS T7", 기술명: "High-resolution Imaging (>25MP)", 활용수준: "CORE", 비고: "" },
+  { 장비모델: "ICOS T7", 기술명: "Telecentric Optics Design", 활용수준: "CORE", 비고: "" },
+  { 장비모델: "ICOS T7", 기술명: "Sub-pixel Edge Detection", 활용수준: "CORE", 비고: "" },
+  { 장비모델: "ICOS T7", 기술명: "3D Point Cloud Reconstruction", 활용수준: "CORE", 비고: "" },
+  { 장비모델: "ICOS T7", 기술명: "GPU-accelerated Real-time Processing", 활용수준: "CORE", 비고: "" },
+  { 장비모델: "ICOS T7", 기술명: "Deep Learning Defect Classification", 활용수준: "SUPPORTING", 비고: "" },
+  { 장비모델: "ICOS T7", 기술명: "Sub-μm Precision Motion Stage", 활용수준: "CORE", 비고: "" },
+  { 장비모델: "ICOS T7", 기술명: "High-NA Objective Lens", 활용수준: "CORE", 비고: "" },
+  { 장비모델: "ICOS F5", 기술명: "High-resolution Imaging (>25MP)", 활용수준: "CORE", 비고: "" },
+  { 장비모델: "ICOS F5", 기술명: "3D Point Cloud Reconstruction", 활용수준: "CORE", 비고: "" },
+  { 장비모델: "ICOS F5", 기술명: "Telecentric Optics Design", 활용수준: "CORE", 비고: "" },
+  { 장비모델: "ICOS F5", 기술명: "Sub-pixel Edge Detection", 활용수준: "SUPPORTING", 비고: "" },
+  // Camtek
+  { 장비모델: "Eagle G5", 기술명: "High-resolution Imaging (>25MP)", 활용수준: "CORE", 비고: "BF 0.5μm, DF 0.3μm (공식 스펙)" },
+  { 장비모델: "Eagle G5", 기술명: "Multi-wavelength Illumination", 활용수준: "CORE", 비고: "BF/DF + CLIP 조명" },
+  { 장비모델: "Eagle G5", 기술명: "Sub-pixel Edge Detection", 활용수준: "CORE", 비고: "" },
+  { 장비모델: "Eagle G5", 기술명: "Deep Learning Defect Classification", 활용수준: "SUPPORTING", 비고: "Feature classification" },
+  { 장비모델: "Eagle G5", 기술명: "GPU-accelerated Real-time Processing", 활용수준: "SUPPORTING", 비고: "" },
+  { 장비모델: "Eagle G5", 기술명: "Large-area Stitching Inspection", 활용수준: "SUPPORTING", 비고: "" },
+  { 장비모델: "HAWK", 기술명: "High-resolution Imaging (>25MP)", 활용수준: "CORE", 비고: "0.1μm sensitivity" },
+  { 장비모델: "HAWK", 기술명: "IR Transmission Imaging", 활용수준: "CORE", 비고: "IR Gen2" },
+  { 장비모델: "HAWK", 기술명: "Multi-wavelength Illumination", 활용수준: "CORE", 비고: "BF/DF + IR Gen2" },
+  { 장비모델: "HAWK", 기술명: "Deep Learning Defect Classification", 활용수준: "CORE", 비고: "Real-time ML (공식)" },
+  { 장비모델: "HAWK", 기술명: "High-NA Objective Lens", 활용수준: "CORE", 비고: "Sub-10μm pitch 대응" },
+  { 장비모델: "HAWK", 기술명: "GPU-accelerated Real-time Processing", 활용수준: "CORE", 비고: "" },
+  { 장비모델: "Phoenix AP", 기술명: "High-resolution Imaging (>25MP)", 활용수준: "CORE", 비고: "" },
+  { 장비모델: "Phoenix AP", 기술명: "Multi-wavelength Illumination", 활용수준: "CORE", 비고: "" },
+  { 장비모델: "Condor ILI", 기술명: "High-resolution Imaging (>25MP)", 활용수준: "CORE", 비고: "" },
+  { 장비모델: "Condor ILI", 기술명: "Sub-pixel Edge Detection", 활용수준: "SUPPORTING", 비고: "" },
+  // Onto Innovation
+  { 장비모델: "Dragonfly G3", 기술명: "High-resolution Imaging (>25MP)", 활용수준: "CORE", 비고: "Sub-μm 2D defect (SEMI)" },
+  { 장비모델: "Dragonfly G3", 기술명: "Multi-wavelength Illumination", 활용수준: "CORE", 비고: "BF/DF/Clearfind" },
+  { 장비모델: "Dragonfly G3", 기술명: "White Light Interferometry (WLI)", 활용수준: "SUPPORTING", 비고: "3Di 기능" },
+  { 장비모델: "Dragonfly G3", 기술명: "Sub-pixel Edge Detection", 활용수준: "CORE", 비고: "" },
+  { 장비모델: "Dragonfly G3", 기술명: "Deep Learning Defect Classification", 활용수준: "CORE", 비고: "ADC/analytics (공식)" },
+  { 장비모델: "Dragonfly G3", 기술명: "GPU-accelerated Real-time Processing", 활용수준: "SUPPORTING", 비고: "" },
+  { 장비모델: "Firefly G3", 기술명: "High-resolution Imaging (>25MP)", 활용수준: "CORE", 비고: "TDI + multi-spectrum" },
+  { 장비모델: "Firefly G3", 기술명: "Panel-level Handling (600×600mm+)", 활용수준: "CORE", 비고: "Panel 특화" },
+  { 장비모델: "Firefly G3", 기술명: "Large-area Stitching Inspection", 활용수준: "CORE", 비고: "" },
+  { 장비모델: "ChromaSpec", 기술명: "White Light Interferometry (WLI)", 활용수준: "CORE", 비고: "Film 두께 측정 전문" },
+  { 장비모델: "ChromaSpec", 기술명: "Multi-wavelength Illumination", 활용수준: "CORE", 비고: "" },
+  // CyberOptics (Nordson)
+  { 장비모델: "SQ3000+", 기술명: "Moiré Interferometry", 활용수준: "SUPPORTING", 비고: "MRS(Multi-Reflection Suppression) 센서" },
+  { 장비모델: "SQ3000+", 기술명: "3D Point Cloud Reconstruction", 활용수준: "CORE", 비고: "" },
+  { 장비모델: "SQ3000+", 기술명: "GPU-accelerated Real-time Processing", 활용수준: "SUPPORTING", 비고: "" },
+  { 장비모델: "WX3000", 기술명: "Moiré Interferometry", 활용수준: "CORE", 비고: "Shadow Moiré 기반" },
+  { 장비모델: "WX3000", 기술명: "Wafer Warpage Measurement", 활용수준: "CORE", 비고: "" },
+  // Koh Young
+  { 장비모델: "KY8030-3", 기술명: "Moiré Interferometry", 활용수준: "CORE", 비고: "핵심 기술" },
+  { 장비모델: "KY8030-3", 기술명: "Phase-Shifting Profilometry (PSP)", 활용수준: "CORE", 비고: "" },
+  { 장비모델: "KY8030-3", 기술명: "3D Point Cloud Reconstruction", 활용수준: "CORE", 비고: "" },
+  { 장비모델: "KY8030-3", 기술명: "GPU-accelerated Real-time Processing", 활용수준: "CORE", 비고: "" },
+  { 장비모델: "KY8030-3", 기술명: "Telecentric Optics Design", 활용수준: "CORE", 비고: "" },
+  { 장비모델: "Zenith 2", 기술명: "Moiré Interferometry", 활용수준: "CORE", 비고: "Shadow-free 3D" },
+  { 장비모델: "Zenith 2", 기술명: "Phase-Shifting Profilometry (PSP)", 활용수준: "CORE", 비고: "" },
+  { 장비모델: "Zenith 2", 기술명: "Deep Learning Defect Classification", 활용수준: "CORE", 비고: "AI 불량 분류" },
+  { 장비모델: "Zenith 2", 기술명: "Multi-wavelength Illumination", 활용수준: "SUPPORTING", 비고: "" },
+  { 장비모델: "Zenith Alpha", 기술명: "Moiré Interferometry", 활용수준: "CORE", 비고: "" },
+  { 장비모델: "Zenith Alpha", 기술명: "Phase-Shifting Profilometry (PSP)", 활용수준: "CORE", 비고: "" },
+  { 장비모델: "Zenith Alpha", 기술명: "Deep Learning Defect Classification", 활용수준: "CORE", 비고: "" },
+  { 장비모델: "Zenith Alpha", 기술명: "Multi-head Parallel Inspection", 활용수준: "SUPPORTING", 비고: "" },
+  { 장비모델: "Meister S", 기술명: "Phase-Shifting Profilometry (PSP)", 활용수준: "CORE", 비고: "Bump coplanarity" },
+  { 장비모델: "Meister S", 기술명: "3D Point Cloud Reconstruction", 활용수준: "CORE", 비고: "" },
+  { 장비모델: "Meister S", 기술명: "High-resolution Imaging (>25MP)", 활용수준: "CORE", 비고: "" },
+  { 장비모델: "Meister S", 기술명: "Sub-pixel Edge Detection", 활용수준: "SUPPORTING", 비고: "" },
+  { 장비모델: "Meister D", 기술명: "3D Point Cloud Reconstruction", 활용수준: "CORE", 비고: "Wire loop height" },
+  { 장비모델: "Meister D", 기술명: "High-resolution Imaging (>25MP)", 활용수준: "CORE", 비고: "" },
+  { 장비모델: "Neptune", 기술명: "High-resolution Imaging (>25MP)", 활용수준: "CORE", 비고: "" },
+  { 장비모델: "Neptune", 기술명: "3D Point Cloud Reconstruction", 활용수준: "CORE", 비고: "" },
+  { 장비모델: "Neptune", 기술명: "GPU-accelerated Real-time Processing", 활용수준: "CORE", 비고: "" },
+  { 장비모델: "Neptune", 기술명: "Sub-μm Precision Motion Stage", 활용수준: "SUPPORTING", 비고: "" },
+  // Mirtec
+  { 장비모델: "MV-6 OMNI", 기술명: "Multi-wavelength Illumination", 활용수준: "CORE", 비고: "" },
+  { 장비모델: "MV-6 OMNI", 기술명: "Deep Learning Defect Classification", 활용수준: "SUPPORTING", 비고: "" },
+  { 장비모델: "MI-15", 기술명: "3D Point Cloud Reconstruction", 활용수준: "CORE", 비고: "" },
+  // Viscom
+  { 장비모델: "X7056-II", 기술명: "Micro-focus X-ray Source", 활용수준: "CORE", 비고: "" },
+  { 장비모델: "X7056-II", 기술명: "CT Reconstruction Algorithm", 활용수준: "SUPPORTING", 비고: "" },
+  { 장비모델: "S3088 SPI", 기술명: "3D Point Cloud Reconstruction", 활용수준: "CORE", 비고: "" },
+  // Nordson DAGE
+  { 장비모델: "XD7800", 기술명: "Micro-focus X-ray Source", 활용수준: "CORE", 비고: "<1μm focal spot" },
+  { 장비모델: "XD7800", 기술명: "CT Reconstruction Algorithm", 활용수준: "CORE", 비고: "CT 기능 포함" },
+  { 장비모델: "XD7800", 기술명: "Scanning Acoustic Tomography (SAT)", 활용수준: "SUPPORTING", 비고: "" },
+  { 장비모델: "Quadra 7", 기술명: "Scanning Acoustic Tomography (SAT)", 활용수준: "CORE", 비고: "" },
+  { 장비모델: "Quadra 7", 기술명: "Micro-focus X-ray Source", 활용수준: "SUPPORTING", 비고: "" },
+  // YXLON
+  { 장비모델: "Cheetah EVO", 기술명: "Micro-focus X-ray Source", 활용수준: "CORE", 비고: "인라인 대응" },
+  { 장비모델: "Cheetah EVO", 기술명: "CT Reconstruction Algorithm", 활용수준: "CORE", 비고: "" },
+  // Nikon
+  { 장비모델: "XT V 160", 기술명: "Micro-focus X-ray Source", 활용수준: "CORE", 비고: "고분해능" },
+  { 장비모델: "XT V 160", 기술명: "CT Reconstruction Algorithm", 활용수준: "CORE", 비고: "Sub-μm CT" },
+];
+
+// ===== EQUIPMENT PRICING =====
+// 가격 출처: WLP 기획서(KY 내부 분석), SEMI Market Reports, 업계 공개 IR, 업계 견적 추정
+// 모든 가격은 추정치이며, 구성/사양에 따라 실제 가격은 크게 다를 수 있음
+const equipmentPricing = [
+  { 장비모델: "ICOS T7", 시장가격USD: 2500000, 가격범위하한USD: 2000000, 가격범위상한USD: 3500000, KY목표가격USD: 1800000, KY목표근거: "Meister 플랫폼 확장 + Moiré 3D 기반으로 광학계 비용 절감. Stage 외주 + 3D optical 자체 개발", 가격출처: "SEMI Market Report 추정, KLA IR 참고", 추정여부: true },
+  { 장비모델: "ICOS F5", 시장가격USD: 1800000, 가격범위하한USD: 1500000, 가격범위상한USD: 2500000, KY목표가격USD: 1200000, KY목표근거: "Meister D 확장. Ball attach 3D 검사에 특화된 광학계로 원가 절감", 가격출처: "KLA IR 참고, 업계 견적 추정", 추정여부: true },
+  { 장비모델: "Eagle G5", 시장가격USD: 1000000, 가격범위하한USD: 780000, 가격범위상한USD: 1500000, KY목표가격USD: 920000, KY목표근거: "WLP 기획서 기준 Standard 12억원(≈$920K). 2D/3D 통합 + AI 분석으로 Eagle 대체 포지셔닝", 가격출처: "WLP 기획서 v2(Camtek 300mm 장비 7.8~19억원), SEMI 추정", 추정여부: true },
+  { 장비모델: "HAWK", 시장가격USD: 2000000, 가격범위하한USD: 1500000, 가격범위상한USD: 2500000, KY목표가격USD: 0, KY목표근거: "HAWK 급 ultra-high-end는 직접 경쟁 회피. WLP 기획서 전략: Eagle 대체 우선", 가격출처: "WLP 기획서 분석(Eagle 대비 2배급 추정), 업계 추정", 추정여부: true },
+  { 장비모델: "Phoenix AP", 시장가격USD: 700000, 가격범위하한USD: 500000, 가격범위상한USD: 900000, KY목표가격USD: 540000, KY목표근거: "WLP 기획서 Lite 7억원(≈$540K). Post-dicing AOI 영역", 가격출처: "Camtek IR 참고, 업계 추정", 추정여부: true },
+  { 장비모델: "Condor ILI", 시장가격USD: 600000, 가격범위하한USD: 400000, 가격범위상한USD: 800000, KY목표가격USD: 540000, KY목표근거: "인라인 검사 Lite 모델로 대응", 가격출처: "업계 추정", 추정여부: true },
+  { 장비모델: "Dragonfly G3", 시장가격USD: 1500000, 가격범위하한USD: 1200000, 가격범위상한USD: 2000000, KY목표가격USD: 920000, KY목표근거: "WLP 기획서: Dragonfly 일부 application 대체. Standard 12억원으로 정밀 계측 일부 커버", 가격출처: "WLP 기획서 분석, SEMI 추정", 추정여부: true },
+  { 장비모델: "Firefly G3", 시장가격USD: 1200000, 가격범위하한USD: 800000, 가격범위상한USD: 1500000, KY목표가격USD: 920000, KY목표근거: "Panel-level 검사 대응. 300mm+panel 공용 플랫폼", 가격출처: "Onto IR 참고, 업계 추정", 추정여부: true },
+  { 장비모델: "ChromaSpec", 시장가격USD: 800000, 가격범위하한USD: 600000, 가격범위상한USD: 1000000, KY목표가격USD: 0, KY목표근거: "Film thickness metrology는 KY 핵심 영역 외. 직접 경쟁 비대상", 가격출처: "업계 추정", 추정여부: true },
+  { 장비모델: "SQ3000+", 시장가격USD: 350000, 가격범위하한USD: 250000, 가격범위상한USD: 500000, KY목표가격USD: 300000, KY목표근거: "KY8030/Zenith와 직접 경쟁 중인 SMT-level 장비. 가격 경쟁력 확보 필요", 가격출처: "Nordson IR, 업계 견적 추정", 추정여부: true },
+  { 장비모델: "WX3000", 시장가격USD: 400000, 가격범위하한USD: 300000, 가격범위상한USD: 600000, KY목표가격USD: 350000, KY목표근거: "Moiré 기반 warpage 측정은 KY 핵심 기술. Koh Young Moiré 활용 원가 절감", 가격출처: "업계 추정", 추정여부: true },
+  { 장비모델: "KY8030-3", 시장가격USD: 300000, 가격범위하한USD: 200000, 가격범위상한USD: 400000, KY목표가격USD: 300000, KY목표근거: "자사 제품. 시장 판가 기준", 가격출처: "고영 공식 가격 범위", 추정여부: false },
+  { 장비모델: "Zenith 2", 시장가격USD: 250000, 가격범위하한USD: 180000, 가격범위상한USD: 350000, KY목표가격USD: 250000, KY목표근거: "자사 제품. 시장 판가 기준", 가격출처: "고영 공식 가격 범위", 추정여부: false },
+  { 장비모델: "Zenith Alpha", 시장가격USD: 280000, 가격범위하한USD: 200000, 가격범위상한USD: 380000, KY목표가격USD: 280000, KY목표근거: "자사 제품. 시장 판가 기준", 가격출처: "고영 공식 가격 범위", 추정여부: false },
+  { 장비모델: "Meister S", 시장가격USD: 600000, 가격범위하한USD: 400000, 가격범위상한USD: 800000, KY목표가격USD: 600000, KY목표근거: "자사 제품. 반도체 패키징 검사 시장 판가 기준", 가격출처: "고영 공식 가격 범위", 추정여부: false },
+  { 장비모델: "Meister D", 시장가격USD: 500000, 가격범위하한USD: 350000, 가격범위상한USD: 700000, KY목표가격USD: 500000, KY목표근거: "자사 제품. Die-level 검사 시장 판가 기준", 가격출처: "고영 공식 가격 범위", 추정여부: false },
+  { 장비모델: "Neptune", 시장가격USD: 900000, 가격범위하한USD: 700000, 가격범위상한USD: 1200000, KY목표가격USD: 920000, KY목표근거: "WLP 기획서 Standard ASP 12억원(≈$920K). 차세대 wafer-level 검사기", 가격출처: "WLP 기획서 v2", 추정여부: true },
+  { 장비모델: "MV-6 OMNI", 시장가격USD: 180000, 가격범위하한USD: 130000, 가격범위상한USD: 250000, KY목표가격USD: 250000, KY목표근거: "Zenith 시리즈로 대응. 가격보다 성능 차별화", 가격출처: "업계 추정", 추정여부: true },
+  { 장비모델: "MI-15", 시장가격USD: 200000, 가격범위하한USD: 150000, 가격범위상한USD: 280000, KY목표가격USD: 300000, KY목표근거: "KY8030으로 대응. 3D SPI 기술 우위로 프리미엄 전략", 가격출처: "업계 추정", 추정여부: true },
+  { 장비모델: "X7056-II", 시장가격USD: 500000, 가격범위하한USD: 350000, 가격범위상한USD: 700000, KY목표가격USD: 0, KY목표근거: "X-ray 영역은 M&A/JV 전략. 자체 개발 비대상", 가격출처: "Viscom IR 참고, 업계 추정", 추정여부: true },
+  { 장비모델: "S3088 SPI", 시장가격USD: 200000, 가격범위하한USD: 150000, 가격범위상한USD: 300000, KY목표가격USD: 300000, KY목표근거: "KY8030으로 대응. 시장 1위 기술로 프리미엄", 가격출처: "업계 추정", 추정여부: true },
+  { 장비모델: "XD7800", 시장가격USD: 1200000, 가격범위하한USD: 800000, 가격범위상한USD: 1500000, KY목표가격USD: 0, KY목표근거: "X-ray/SAT 영역. M&A/JV 전략 대상. 자체 경쟁 장비 없음", 가격출처: "Nordson IR, 업계 추정", 추정여부: true },
+  { 장비모델: "Quadra 7", 시장가격USD: 800000, 가격범위하한USD: 600000, 가격범위상한USD: 1200000, KY목표가격USD: 0, KY목표근거: "SAT 영역. M&A/JV 전략 대상", 가격출처: "업계 추정", 추정여부: true },
+  { 장비모델: "Cheetah EVO", 시장가격USD: 1000000, 가격범위하한USD: 700000, 가격범위상한USD: 1300000, KY목표가격USD: 0, KY목표근거: "인라인 X-ray CT. M&A/JV 전략 대상", 가격출처: "업계 추정", 추정여부: true },
+  { 장비모델: "XT V 160", 시장가격USD: 1500000, 가격범위하한USD: 1000000, 가격범위상한USD: 2000000, KY목표가격USD: 0, KY목표근거: "고분해능 CT. Offline 분석용. KY 경쟁 대상 외", 가격출처: "Nikon IR 참고, 업계 추정", 추정여부: true },
+];
+
+// ===== KY PROPOSAL SPECS =====
+// 기존 검사포인트 스펙 + KY역량분석 + WLP기획서 데이터를 결합하여 생성
+type ProposalRow = { 제품명: string; 공정단계: string; 검사포인트: string; 스펙항목: string; 시장요구스펙: string; KY현재스펙: string; KY목표스펙: string; 달성전략: string; 달성시기: string; 근거: string };
+const kyProposalSpecs: ProposalRow[] = [];
+
+const kySpecMap: Record<string, { current: string; target: string; strategy: string; timeline: string; source: string }> = {
+  "해상도:BUMP_INSPECTION": { current: "~2μm (Meister S 기준)", target: "≤1μm (wafer-level)", strategy: "고NA 광학계 개발 + PSP 기반 3D 측정 고도화", timeline: "12-18개월", source: "WLP 기획서: 0.5~1.0μm/pixel 목표. KY역량분석 High-NA 갭" },
+  "정밀도:BUMP_INSPECTION": { current: "±1μm (Meister S)", target: "±0.5μm", strategy: "Phase-Shifting 알고리즘 고도화 + 능동 제진", timeline: "12-18개월", source: "WLP 기획서: ±1μm repeatability 목표. KY역량분석 Active Vibration 갭" },
+  "속도:BUMP_INSPECTION": { current: "~20 UPH", target: "≥40 UPH (wafer)", strategy: "GPU 가속 + Multi-head 병렬 검사 + Selective 3D", timeline: "12-24개월", source: "WLP 기획서: 40~60 WPH 목표. 생산성 확보 핵심" },
+  "해상도:SURFACE_INSPECTION": { current: "~5μm (Zenith 기준)", target: "0.3~0.5μm", strategy: "고해상도 카메라 + BF/DF multi-angle 조명 시스템 개발", timeline: "12-18개월", source: "WLP 기획서: 0.3~0.5μm defect sensitivity 목표" },
+  "정밀도:SURFACE_INSPECTION": { current: "~2μm", target: "≤0.5μm", strategy: "Sub-pixel edge detection 고도화 + 텔레센트릭 광학 확장", timeline: "12-18개월", source: "WLP 기획서: Sub-μm 2D defect 검출 목표" },
+  "속도:SURFACE_INSPECTION": { current: "~30 UPH", target: "40~60 WPH", strategy: "TDI line scan 또는 고속 area scan + turret lens", timeline: "12-24개월", source: "WLP 기획서: 고속 2D/3D 통합 검사 플랫폼" },
+  "해상도:CD_METROLOGY": { current: "~5μm", target: "≤1.5μm L/S", strategy: "고해상도 광학 + CSI-like layer separation 개발", timeline: "12-18개월", source: "WLP 기획서: 1.5/1.5μm RDL 단계 목표, 장기 1/1μm" },
+  "정밀도:CD_METROLOGY": { current: "~3μm", target: "≤1μm", strategy: "CAD 기반 검사 + AI false call filtering", timeline: "12-24개월", source: "WLP 기획서: CAD overlay error ≤1 pixel 목표" },
+  "해상도:SPI": { current: "≤15μm (KY8030)", target: "≤15μm", strategy: "현 수준 유지. Moiré 기반 3D SPI 시장 1위", timeline: "유지", source: "시장 1위 기술. 현 수준 충분" },
+  "정밀도:SPI": { current: "3σ ≤0.5μm", target: "3σ ≤0.5μm", strategy: "현 수준 유지 및 TIM 검사 레시피 확장", timeline: "유지", source: "SPI 시장 1위 유지" },
+  "속도:SPI": { current: "≥60 panel/hr", target: "≥60 panel/hr", strategy: "현 수준 유지", timeline: "유지", source: "생산성 충분" },
+  "해상도:POST_REFLOW_AOI": { current: "≤10μm (Zenith)", target: "≤5μm", strategy: "고해상도 카메라 업그레이드 + 다파장 조명 확장", timeline: "6-12개월", source: "반도체 패키지 대응 해상도 향상" },
+  "정밀도:POST_REFLOW_AOI": { current: "3σ ≤1μm", target: "3σ ≤0.5μm", strategy: "Shadow-free 3D 알고리즘 고도화", timeline: "6-12개월", source: "Zenith 플랫폼 고도화" },
+  "해상도:ALIGNMENT_INSPECTION": { current: "~2μm", target: "≤0.5μm", strategy: "고NA 광학 + Sub-pixel alignment 알고리즘", timeline: "12-24개월", source: "Die stacking ±0.5μm 정렬 요구" },
+  "정밀도:ALIGNMENT_INSPECTION": { current: "±1μm", target: "±0.2μm", strategy: "정밀 Stage + 알고리즘 보강", timeline: "18-24개월", source: "KY역량분석: Sub-μm Stage 갭 MEDIUM" },
+  "해상도:XRAY_2D": { current: "미보유", target: "M&A/JV 통해 확보", strategy: "X-ray 기술 기업 인수 또는 합작법인. 자체 개발 비현실적", timeline: "6-12개월(M&A)", source: "KY역량분석: X-ray 갭 LARGE. WLP 기획서: 장기 optical+X-ray 연계" },
+  "해상도:SAT_INSPECTION": { current: "미보유", target: "M&A/JV 통해 확보", strategy: "SAT 전문 기업 협력 또는 인수", timeline: "6-12개월(M&A)", source: "KY역량분석: SAT 갭 LARGE" },
+  "해상도:TSV_INSPECTION": { current: "미보유", target: "Confocal/IR 모듈 개발", strategy: "신규 Confocal 광학 모듈 개발. IR 센서 내재화", timeline: "24-36개월", source: "KY역량분석: Confocal 갭 LARGE, IR 갭 LARGE" },
+  "해상도:WARPAGE_MEASUREMENT": { current: "기초 보유 (Moiré)", target: "전면 고속 측정", strategy: "Shadow Moiré 기반 전면 warpage 모듈 개발", timeline: "12-18개월", source: "KY역량분석: Warpage 갭 MEDIUM. Moiré 핵심 기술 활용" },
+  "해상도:THICKNESS_METROLOGY": { current: "미보유(WLI 기초)", target: "nm급 film 계측", strategy: "WLI 광학계 정밀도 향상", timeline: "12-18개월", source: "KY역량분석: WLI 갭 MEDIUM" },
+  "해상도:DIE_ATTACH_INSPECTION": { current: "~5μm (Meister D)", target: "≤2μm", strategy: "Meister D 광학계 업그레이드", timeline: "6-12개월", source: "기존 Meister 플랫폼 확장" },
+  "해상도:WIRE_BOND_INSPECTION": { current: "~5μm (Meister D)", target: "≤2μm", strategy: "Wire loop 3D 고도화", timeline: "6-12개월", source: "기존 Meister 플랫폼" },
+  "해상도:TIM_INSPECTION": { current: "≤15μm (SPI 응용)", target: "≤15μm", strategy: "KY SPI 엔진 TIM 응용 레시피 개발", timeline: "3-6개월", source: "WLP 기획서: SPI 기술 응용 조기 상용화" },
+  "해상도:BALL_ATTACH_INSPECTION": { current: "~10μm (Meister D)", target: "≤5μm", strategy: "Meister D 광학 모듈 고도화", timeline: "6-12개월", source: "기존 Meister 플랫폼" },
+};
+
+for (const ip of inspectionPointsWithSpecs) {
+  const specEntries: { item: string; req: string | null }[] = [
+    { item: "해상도", req: ip.해상도요구 },
+    { item: "정밀도", req: ip.정밀도요구 },
+    { item: "속도", req: ip.속도요구 },
+  ];
+  for (const { item, req } of specEntries) {
+    if (!req) continue;
+    const key = `${item}:${ip.검사유형}`;
+    const ky = kySpecMap[key];
+    if (ky) {
+      kyProposalSpecs.push({
+        제품명: ip.제품명,
+        공정단계: ip.공정단계,
+        검사포인트: ip.검사포인트,
+        스펙항목: item,
+        시장요구스펙: req,
+        KY현재스펙: ky.current,
+        KY목표스펙: ky.target,
+        달성전략: ky.strategy,
+        달성시기: ky.timeline,
+        근거: ky.source,
+      });
+    }
+  }
+}
+
 // ===== BUILD WORKBOOK =====
 function autoWidth(data: object[]): XLSX.ColInfo[] {
   if (data.length === 0) return [];
@@ -884,6 +1207,10 @@ XLSX.utils.book_append_sheet(wb, createSheet(devProjects), "개발로드맵");
 XLSX.utils.book_append_sheet(wb, createSheet(strategicActions), "전략액션");
 XLSX.utils.book_append_sheet(wb, createSheet(techRelations), "기술상관관계");
 XLSX.utils.book_append_sheet(wb, createSheet(techSpecs), "기술스펙");
+XLSX.utils.book_append_sheet(wb, createSheet(inspectionEquipmentMapping), "검사장비매핑");
+XLSX.utils.book_append_sheet(wb, createSheet(equipmentTechMapping), "장비기술매핑");
+XLSX.utils.book_append_sheet(wb, createSheet(equipmentPricing), "장비가격");
+XLSX.utils.book_append_sheet(wb, createSheet(kyProposalSpecs), "KY제안스펙");
 
 XLSX.writeFile(wb, OUTPUT_PATH);
 process.stdout.write(`XLSX generated: ${OUTPUT_PATH}\n`);

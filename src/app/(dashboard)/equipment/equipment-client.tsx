@@ -139,28 +139,63 @@ export function EquipmentClient({ makers, models }: EquipmentClientProps) {
                   {makerModels.map((model) => (
                     <div
                       key={model.name}
-                      className="flex items-center justify-between rounded-md border px-3 py-2"
+                      className="rounded-md border px-3 py-2 space-y-1.5"
                     >
-                      <div>
-                        <span className="text-sm font-medium">{model.name}</span>
-                        {model.series && (
-                          <span className="ml-1 text-xs text-muted-foreground">
-                            ({model.series})
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <span className="text-sm font-medium">{model.name}</span>
+                          {model.series && (
+                            <span className="ml-1 text-xs text-muted-foreground">
+                              ({model.series})
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          {model.inspectionTypes.slice(0, 2).map((t) => (
+                            <Badge key={t} variant="secondary" className="text-[10px]">
+                              {inspectionTypeLabel(t)}
+                            </Badge>
+                          ))}
+                          {model.inspectionTypes.length > 2 && (
+                            <Badge variant="secondary" className="text-[10px]">
+                              +{model.inspectionTypes.length - 2}
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                      {model.pricing && (
+                        <div className="flex items-center gap-2 text-[10px]">
+                          <span className="text-muted-foreground">시장가:</span>
+                          <span className="font-medium">
+                            ${(model.pricing.marketPriceUSD / 1000000).toFixed(1)}M
                           </span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-1">
-                        {model.inspectionTypes.slice(0, 2).map((t) => (
-                          <Badge key={t} variant="secondary" className="text-[10px]">
-                            {inspectionTypeLabel(t)}
-                          </Badge>
-                        ))}
-                        {model.inspectionTypes.length > 2 && (
-                          <Badge variant="secondary" className="text-[10px]">
-                            +{model.inspectionTypes.length - 2}
-                          </Badge>
-                        )}
-                      </div>
+                          <span className="text-muted-foreground">
+                            (${(model.pricing.priceLowUSD / 1000000).toFixed(1)}~{(model.pricing.priceHighUSD / 1000000).toFixed(1)}M)
+                          </span>
+                          <span className="text-muted-foreground">KY목표:</span>
+                          <span className="font-medium text-blue-600">
+                            ${(model.pricing.kyTargetPriceUSD / 1000000).toFixed(1)}M
+                          </span>
+                          {model.pricing.isEstimated && (
+                            <Badge variant="outline" className="text-[9px] px-1 py-0 text-amber-600 border-amber-300">
+                              추정
+                            </Badge>
+                          )}
+                        </div>
+                      )}
+                      {model.technologies && model.technologies.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {model.technologies.map((t) => (
+                            <Badge
+                              key={t.technologyName}
+                              variant={t.utilizationLevel === "CORE" ? "default" : "outline"}
+                              className="text-[9px] px-1 py-0"
+                            >
+                              {t.technologyName.length > 25 ? t.technologyName.slice(0, 25) + "..." : t.technologyName}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

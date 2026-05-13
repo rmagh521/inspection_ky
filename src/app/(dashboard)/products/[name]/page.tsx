@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { difficultyToStars, inspectionTypeLabel } from "@/lib/utils";
 import { ProcessFlowDiagram } from "@/components/charts/process-flow-diagram";
+import Link from "next/link";
 
 export default async function ProductDetailPage({
   params,
@@ -91,7 +92,7 @@ export default async function ProductDetailPage({
               <CardContent>
                 <div className="space-y-3">
                   {step.inspectionPoints.map((ip) => (
-                    <div key={ip.name} className="rounded-md border p-3">
+                    <div key={ip.name} className="rounded-md border p-3 space-y-2">
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-sm font-medium">{ip.name}</span>
                         <div className="flex items-center gap-2">
@@ -132,6 +133,61 @@ export default async function ProductDetailPage({
                               <span className="text-muted-foreground">FOV:</span> {ip.fovSpec}
                             </span>
                           )}
+                        </div>
+                      )}
+                      {ip.equipmentModels && ip.equipmentModels.length > 0 && (
+                        <div className="mt-2 pt-2 border-t">
+                          <p className="text-[11px] font-medium text-muted-foreground mb-1">매핑 장비</p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {ip.equipmentModels.map((em) => (
+                              <Link
+                                key={`${em.makerName}-${em.modelName}`}
+                                href="/equipment"
+                                className="inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] hover:bg-accent transition-colors"
+                              >
+                                <span className="font-medium">{em.makerName}</span>
+                                <span>{em.modelName}</span>
+                                <Badge
+                                  variant={em.suitability === "PRIMARY" ? "default" : "secondary"}
+                                  className="text-[9px] px-1 py-0"
+                                >
+                                  {em.suitability === "PRIMARY" ? "주력" : em.suitability === "SECONDARY" ? "대체" : "부분"}
+                                </Badge>
+                                {em.notes && (
+                                  <span className="text-muted-foreground" title={em.notes}>*</span>
+                                )}
+                              </Link>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {ip.proposalSpecs && ip.proposalSpecs.length > 0 && (
+                        <div className="mt-2 pt-2 border-t">
+                          <p className="text-[11px] font-medium text-muted-foreground mb-1">KY 제안 스펙</p>
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-[10px]">
+                              <thead>
+                                <tr className="border-b text-muted-foreground">
+                                  <th className="text-left py-1 pr-2">스펙 항목</th>
+                                  <th className="text-left py-1 pr-2">시장 요구</th>
+                                  <th className="text-left py-1 pr-2">KY 현재</th>
+                                  <th className="text-left py-1 pr-2">KY 목표</th>
+                                  <th className="text-left py-1">달성 시기</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {ip.proposalSpecs.map((ps) => (
+                                  <tr key={ps.specItem} className="border-b last:border-0">
+                                    <td className="py-1 pr-2 font-medium">{ps.specItem}</td>
+                                    <td className="py-1 pr-2">{ps.marketRequiredSpec}</td>
+                                    <td className="py-1 pr-2 text-orange-600">{ps.kyCurrentSpec}</td>
+                                    <td className="py-1 pr-2 text-blue-600">{ps.kyTargetSpec}</td>
+                                    <td className="py-1">{ps.timeline}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
                         </div>
                       )}
                     </div>
