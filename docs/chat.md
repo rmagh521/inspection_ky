@@ -2,6 +2,24 @@
 
 ## 2026-05-13
 
+### 요청: 엔티티 링킹 + 장비 가격 + 추론 검증 시스템
+- **시간**: 오후
+- **내용**: 3가지 기능 추가 요청
+  1. **엔티티 링킹 체인**: 제품 → 공정 → 검사포인트 → 장비 → 기술 → 스펙 → KY 제안스펙 → 기술 갭
+  2. **장비 가격**: 실제 시장 판가 + KY 경쟁력 목표 가격 (PPT 참고: WLP 검사기 상품 기획서_v2.pptx)
+  3. **추론 검증**: 추론 데이터에 근거/출처 명시
+- **참고 자료**: `WLP 검사기 상품 기획서_v2.pptx` (109슬라이드) — PowerShell ZIP+XML 파싱으로 데이터 추출
+- **결과**: 전체 구현 완료. XLSX 16개 시트 → 빌드 성공 → Netlify 배포 완료
+  - URL: https://inspection-dashboard-ky.netlify.app
+- **주요 변경**:
+  - `src/types/data.ts` — 4개 신규 인터페이스 (InspectionEquipmentMap, EquipmentTechMap, EquipmentPricing, KYProposalSpec), EquipmentModel/InspectionPoint 확장
+  - `scripts/generate-xlsx.ts` — 4개 시트 데이터 생성: 검사장비매핑(~250행), 장비기술매핑(~90행), 장비가격(~25행), KY제안스펙(~300행)
+  - `src/lib/xlsx-data.ts` — 4개 getter 추가, getEquipmentModels()에 pricing/tech 조인, getProductDetail()에 장비매핑/제안스펙 조인
+  - `src/app/(dashboard)/products/[name]/page.tsx` — 검사포인트 카드에 매핑 장비 + KY 제안스펙 테이블 추가
+  - `src/app/(dashboard)/equipment/equipment-client.tsx` — 장비 카드에 가격정보 + 기술 Badge 추가, 추정 데이터에 추정 태그
+  - `src/app/(dashboard)/ky-analysis/page.tsx` — proposalSpecs/products 데이터 fetch 추가
+  - `src/app/(dashboard)/ky-analysis/ky-analysis-client.tsx` — "제안 스펙 Gap" 탭 추가 (제품별 필터, 스펙항목 분포, 상세 테이블)
+
 ### 요청: 배포 사이트 CSS 깨짐 수정
 - **시간**: 오후
 - **내용**: https://inspection-dashboard-ky.netlify.app 접속 시 CSS가 전혀 적용되지 않는 문제 수정 요청

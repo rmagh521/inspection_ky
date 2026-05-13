@@ -2,6 +2,37 @@
 
 ## 2026-05-13
 
+### 엔티티 링킹 + 장비 가격 + KY 제안스펙 시스템
+
+**타입 정의**
+- `src/types/data.ts` — 수정: InspectionEquipmentMap, EquipmentTechMap, EquipmentPricing, KYProposalSpec 4개 인터페이스 신규. EquipmentModel에 pricing/technologies 추가, InspectionPoint에 equipmentModels/proposalSpecs 추가
+
+**XLSX 데이터 생성**
+- `scripts/generate-xlsx.ts` — 수정:
+  - `검사장비매핑` 시트 신규 (~250행): 검사포인트 ↔ 장비모델 N:M 매핑 (PRIMARY/SECONDARY/ALTERNATIVE)
+  - `장비기술매핑` 시트 신규 (~90행): 장비모델 ↔ 기술 N:M 매핑 (CORE/SUPPORTING)
+  - `장비가격` 시트 신규 (~25행): 시장가격, 가격범위, KY목표가격, 근거, 출처, 추정여부
+  - `KY제안스펙` 시트 신규 (~300행): 시장요구스펙 vs KY현재 vs KY목표, 달성전략/시기/근거
+  - XLSX 시트 수: 12 → 16개
+  - PPT 데이터 반영: Camtek 300mm 7.8~19억, KY Standard ASP 12억 등
+
+**데이터 레이어**
+- `src/lib/xlsx-data.ts` — 수정:
+  - getInspectionEquipmentMaps(), getEquipmentTechMaps(), getEquipmentPricing(), getKYProposalSpecs() 함수 추가
+  - getEquipmentModels()에 pricing/technologies 조인
+  - getProductDetail()에 장비매핑/제안스펙 조인
+  - REQUIRED_SHEETS에 4개 시트 추가
+
+**제품 상세 UI**
+- `src/app/(dashboard)/products/[name]/page.tsx` — 수정: 검사포인트 카드에 매핑 장비 링크 + KY 제안스펙 테이블 (시장요구/KY현재/KY목표/달성시기) 추가
+
+**장비 UI**
+- `src/app/(dashboard)/equipment/equipment-client.tsx` — 수정: 장비 모델 카드에 가격정보 (시장가/KY목표가), 추정 Badge, 기술 Badge 추가
+
+**KY 분석 UI**
+- `src/app/(dashboard)/ky-analysis/page.tsx` — 수정: proposalSpecs/products 데이터 fetch 추가
+- `src/app/(dashboard)/ky-analysis/ky-analysis-client.tsx` — 수정: "제안 스펙 Gap" 탭 추가 (제품별 필터, KPI 카드 4개, 스펙항목 분포, 검사포인트별 상세 테이블)
+
 ### 배포 CSS 깨짐 수정 (Middleware → Layout 인증 전환)
 - `src/middleware.ts` — 삭제: Edge Functions 의존성 제거 (Deno EBUSY 문제 근본 해결)
 - `src/app/(dashboard)/layout.tsx` — 수정: `cookies()` + `redirect()` 기반 서버사이드 인증 체크 추가
